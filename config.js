@@ -106,4 +106,21 @@ window.FP_CONFIG = {
   },
 
   gpx: { creator: 'footpath-clone', trackName: 'My Route' },
+
+  // --- My Trails (personal activity data, e.g. exported from Strava) -------
+  // Data is imported by the user from a local JSON file and stored ONLY in
+  // the browser (localStorage, per user profile). It is never bundled into
+  // the site. If a file named `autoLoadFile` happens to be served next to
+  // the app (e.g. your local dev folder — it's gitignored), it is imported
+  // automatically for convenience; on the public site that fetch just 404s.
+  trails: {
+    autoLoadFile: 'strava-runs.json',
+    color: '#fc4c02',                    // trail segments in the route (Strava orange)
+    faintColor: '#fc4c02',               // "show on map" layer
+    faintOpacity: 0.35,
+    faintWeight: 3,
+    hillSecondsPerMeterAscent: 6,        // grade adjustment for the time estimate
+                                         // (applied to snapped segments only —
+                                         // a real run's pace already includes its hills)
+  },
 };

@@ -1,0 +1,4 @@
+# Private user data - never commit
+strava-runs.json
+*.private.json
+node_modules/

@@ -56,8 +56,16 @@
   let hoverDot = null; // map marker mirroring elevation-chart hover
 
   function profileColor(key) {
+    if (key === 'trail') return CFG.trails.color;
     const p = CFG.profiles.find((p) => p.key === key);
     return p ? p.color : '#868e96';
+  }
+
+  // A waypoint that borders a trail segment can't be dragged — re-routing
+  // would destroy the recorded track (delete the trail or undo instead).
+  function isTrailLocked(i) {
+    return (state.segments[i - 1] && state.segments[i - 1].profile === 'trail') ||
+           (state.segments[i] && state.segments[i].profile === 'trail');
   }
 
   // --------------------------------------------------------------------------
@@ -202,6 +210,7 @@
   }
 
   async function moveWaypoint(i, latlng) {
+    if (isTrailLocked(i)) { render(); return; } // safety net; marker isn't draggable
     const wp = state.waypoints[i];
     wp.lat = latlng.lat; wp.lng = latlng.lng;
     // Re-route the segment(s) touching this waypoint.
@@ -230,6 +239,10 @@
       state.waypoints.shift(); state.segments.shift();
     } else if (i === state.waypoints.length - 1) {
       state.waypoints.pop(); state.segments.pop();
+    } else if (isTrailLocked(i)) {
+      undoStack.pop(); // undo the snapshot we just took
+      toast('That point anchors a trail — delete from the route end, or use Undo');
+      return;
     } else {
       const joined = await routeSegment(
         state.waypoints[i - 1], state.waypoints[i + 1], state.segments[i].profile);
@@ -249,6 +262,7 @@
         coords: s.coords.slice().reverse().map((c) => c.slice()),
         distance: s.distance,
         profile: s.profile,
+        meta: s.meta ? { ...s.meta } : undefined,
       });
     }
     const nWp = state.waypoints.length;
@@ -301,21 +315,26 @@
 
     state.waypoints.forEach((wp, i) => {
       const isEnd = i === 0 || i === state.waypoints.length - 1;
+      const locked = isTrailLocked(i);
       const icon = L.divIcon({
         className: '',
         html: `<div class="wp-icon${isEnd ? ' endpoint' : ''}" style="` +
-          `background:${CFG.colors.waypoint};border-color:${CFG.colors.waypointBorder}"></div>`,
+          `background:${locked ? CFG.trails.color : CFG.colors.waypoint};` +
+          `border-color:${CFG.colors.waypointBorder}"></div>`,
         iconSize: isEnd ? [24, 24] : [20, 20],
         iconAnchor: isEnd ? [12, 12] : [10, 10],
       });
-      const m = L.marker([wp.lat, wp.lng], { icon, draggable: true });
-      m.on('dragstart', () => pushUndo());
-      m.on('dragend', (e) => {
-        const ll = e.target.getLatLng();
-        enqueue(() => moveWaypoint(i, ll));
-      });
+      const m = L.marker([wp.lat, wp.lng], { icon, draggable: !locked });
+      if (!locked) {
+        m.on('dragstart', () => pushUndo());
+        m.on('dragend', (e) => {
+          const ll = e.target.getLatLng();
+          enqueue(() => moveWaypoint(i, ll));
+        });
+      }
       m.on('contextmenu', () => enqueue(() => deleteWaypoint(i)));
-      m.bindTooltip(i === 0 ? 'Start (drag to move, right-click to delete)' :
+      m.bindTooltip(locked ? 'Trail anchor · right-click to delete (from route end)' :
+        i === 0 ? 'Start (drag to move, right-click to delete)' :
         'Drag to move · right-click to delete', { direction: 'top', opacity: 0.85 });
       m.addTo(markerLayer);
     });
@@ -346,6 +365,7 @@
     document.getElementById('btn-export').disabled = !hasRoute;
     document.getElementById('hint').style.display = state.waypoints.length ? 'none' : '';
 
+    updateTimeEstimate();
     scheduleElevation();
   }
 
@@ -461,6 +481,7 @@
       if (dif > 0) up += dif; else down -= dif;
     }
     setElevStats({ up, down });
+    updateTimeEstimate(); // grade adjustment can refine once elevation is known
     drawChart();
   }
 
@@ -740,6 +761,334 @@ ${trkpts}
   }
 
   // --------------------------------------------------------------------------
+  // Users — lightweight local profiles (localStorage, no backend).
+  // Each user owns their imported trail data; nothing leaves this browser.
+  // --------------------------------------------------------------------------
+  const USERS_KEY = 'fp_users';
+
+  function loadUsers() {
+    let u = null;
+    try { u = JSON.parse(localStorage.getItem(USERS_KEY)); } catch (e) { /* corrupt -> reseed */ }
+    if (!u || !Array.isArray(u.users) || !u.users.length) {
+      u = { users: [{ id: 'u_gabe', name: 'Gabe' }], currentUserId: 'u_gabe' };
+      localStorage.setItem(USERS_KEY, JSON.stringify(u));
+    }
+    if (!u.users.find((x) => x.id === u.currentUserId)) u.currentUserId = u.users[0].id;
+    return u;
+  }
+  let users = loadUsers();
+  const currentUser = () => users.users.find((x) => x.id === users.currentUserId);
+
+  const userSelect = document.getElementById('user-select');
+  function renderUserSelect() {
+    userSelect.innerHTML = '';
+    for (const u of users.users) {
+      const o = document.createElement('option');
+      o.value = u.id; o.textContent = '👤 ' + u.name;
+      if (u.id === users.currentUserId) o.selected = true;
+      userSelect.appendChild(o);
+    }
+    const add = document.createElement('option');
+    add.value = '__new'; add.textContent = '＋ New user…';
+    userSelect.appendChild(add);
+  }
+  userSelect.addEventListener('change', () => {
+    if (userSelect.value === '__new') {
+      const name = (prompt('Name for the new user profile:') || '').trim();
+      if (!name) { renderUserSelect(); return; }
+      const u = { id: 'u_' + Date.now().toString(36), name };
+      users.users.push(u);
+      users.currentUserId = u.id;
+    } else {
+      users.currentUserId = userSelect.value;
+    }
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    renderUserSelect();
+    loadTrailData();
+  });
+
+  // --------------------------------------------------------------------------
+  // My Trails — imported personal runs (e.g. pulled from Strava), stored per
+  // user in localStorage. Never bundled with the site; imported from a local
+  // JSON file, or auto-loaded from ./strava-runs.json when that file happens
+  // to be served next to the app (dev convenience — it's gitignored).
+  // --------------------------------------------------------------------------
+  const trailsKey = () => 'fp_trails_' + users.currentUserId;
+  let trailData = null;          // {athlete, median_pace_s_per_km, runs: [...]}
+  const trailsLayer = L.layerGroup().addTo(map);   // faint "show all" overlay
+  let trailPreview = null;                          // hover highlight
+
+  function validateTrailData(d) {
+    if (!d || !Array.isArray(d.runs)) return 'no "runs" array';
+    const ok = d.runs.filter((r) =>
+      Array.isArray(r.latlng) && r.latlng.length >= 2 &&
+      isFinite(r.distance_m) && isFinite(r.moving_time_s));
+    if (!ok.length) return 'no runs with latlng + distance + time';
+    return null;
+  }
+
+  // Keep only what the app needs (drops anything unexpected, incl. any
+  // token-shaped fields that should never be there in the first place).
+  function slimTrailData(d) {
+    return {
+      athlete: { firstname: (d.athlete && d.athlete.firstname) || currentUser().name },
+      generated_at: d.generated_at || null,
+      note: d.note || null,
+      median_pace_s_per_km: isFinite(d.median_pace_s_per_km) ? d.median_pace_s_per_km : null,
+      runs: d.runs
+        .filter((r) => Array.isArray(r.latlng) && r.latlng.length >= 2 &&
+                       isFinite(r.distance_m) && isFinite(r.moving_time_s))
+        .map((r) => ({
+          id: String(r.id),
+          name: r.name || 'Run',
+          sport_type: r.sport_type || 'Run',
+          start_date: r.start_date || null,
+          distance_m: r.distance_m,
+          moving_time_s: r.moving_time_s,
+          elev_gain_m: isFinite(r.elev_gain_m) ? r.elev_gain_m : null,
+          pace_s_per_km: isFinite(r.pace_s_per_km)
+            ? r.pace_s_per_km
+            : r.moving_time_s / (r.distance_m / 1000),
+          latlng: r.latlng.map((c) => [+(+c[0]).toFixed(5), +(+c[1]).toFixed(5)]),
+        })),
+    };
+  }
+
+  function importTrailData(raw) {
+    const err = validateTrailData(raw);
+    if (err) { toast('Import failed: ' + err); return false; }
+    trailData = slimTrailData(raw);
+    try {
+      localStorage.setItem(trailsKey(), JSON.stringify(trailData));
+    } catch (e) {
+      toast('Imported, but too large to persist in this browser (' + e.name + ')');
+    }
+    renderTrailsPanel();
+    renderTrailsLayer();
+    updateTimeEstimate();
+    toast(`Imported ${trailData.runs.length} runs for ${currentUser().name}`);
+    return true;
+  }
+
+  function loadTrailData() {
+    trailData = null;
+    try { trailData = JSON.parse(localStorage.getItem(trailsKey())); } catch (e) { /* none */ }
+    renderTrailsPanel();
+    renderTrailsLayer();
+    updateTimeEstimate();
+  }
+
+  function medianPaceSPerKm() {
+    if (!trailData) return null;
+    if (isFinite(trailData.median_pace_s_per_km) && trailData.median_pace_s_per_km > 0) {
+      return trailData.median_pace_s_per_km;
+    }
+    const paces = trailData.runs.map((r) => r.pace_s_per_km).filter((p) => isFinite(p)).sort((a, b) => a - b);
+    return paces.length ? paces[Math.floor(paces.length / 2)] : null;
+  }
+
+  function fmtPace(sPerKm) {
+    const s = imperial ? sPerKm * 1.609344 : sPerKm;
+    const m = Math.floor(s / 60), r = Math.round(s % 60);
+    return `${m}:${String(r).padStart(2, '0')} /${imperial ? 'mi' : 'km'}`;
+  }
+  function fmtDuration(sec) {
+    sec = Math.round(sec);
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                 : `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // ---- Panel -----------------------------------------------------------------
+  const trailsPanel = document.getElementById('trails-panel');
+
+  function renderTrailsPanel() {
+    document.getElementById('tp-user').textContent = currentUser().name;
+    const list = document.getElementById('tp-list');
+    const meta = document.getElementById('tp-meta');
+    list.innerHTML = '';
+    if (!trailData || !trailData.runs.length) {
+      meta.textContent = '';
+      list.innerHTML = '<div class="tp-empty">No trails yet for this user.<br><br>' +
+        'Tap <b>⤒ Load my trails</b> and pick your <code>strava-runs.json</code> ' +
+        '(works on phone too — the file just needs to be on the device).</div>';
+      return;
+    }
+    const mp = medianPaceSPerKm();
+    const dates = trailData.runs.map((r) => r.start_date).filter(Boolean).sort();
+    const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    meta.textContent = `${trailData.runs.length} runs` +
+      (dates.length ? ` · ${fmtD(dates[0])} – ${fmtD(dates[dates.length - 1])}` : '') +
+      (mp ? ` · median ${fmtPace(mp)}` : '');
+
+    for (const run of trailData.runs) {
+      const item = document.createElement('div');
+      item.className = 'tp-item';
+      const info = document.createElement('div');
+      info.className = 'tp-info';
+      info.innerHTML = `<div class="tp-name">${run.name.replace(/</g, '&lt;')}</div>` +
+        `<div class="tp-sub">${fmtD(run.start_date)} · ${fmtDistance(run.distance_m)} · ${fmtPace(run.pace_s_per_km)}</div>`;
+      const btn = document.createElement('button');
+      btn.className = 'tp-add';
+      btn.textContent = '+ Add';
+      btn.title = 'Add this run to the route';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        enqueue(() => addTrailToRoute(run));
+      });
+      item.appendChild(info);
+      item.appendChild(btn);
+      item.addEventListener('mouseenter', () => previewTrail(run));
+      item.addEventListener('mouseleave', () => previewTrail(null));
+      item.addEventListener('click', () => {
+        map.fitBounds(L.latLngBounds(run.latlng), { padding: [60, 60] });
+        previewTrail(run);
+      });
+      list.appendChild(item);
+    }
+  }
+
+  function previewTrail(run) {
+    if (trailPreview) { map.removeLayer(trailPreview); trailPreview = null; }
+    if (run) {
+      trailPreview = L.polyline(run.latlng, {
+        color: CFG.trails.color, weight: 6, opacity: 0.9, interactive: false,
+      }).addTo(map);
+    }
+  }
+
+  function renderTrailsLayer() {
+    trailsLayer.clearLayers();
+    if (!trailData || !document.getElementById('tp-showall').checked) return;
+    for (const run of trailData.runs) {
+      L.polyline(run.latlng, {
+        color: CFG.trails.faintColor, weight: CFG.trails.faintWeight,
+        opacity: CFG.trails.faintOpacity,
+      }).bindTooltip(`${run.name} — ${fmtDistance(run.distance_m)} (click to add)`,
+        { sticky: true, opacity: 0.85 })
+        .on('click', (e) => {
+          L.DomEvent.stopPropagation(e); // don't also drop a waypoint
+          enqueue(() => addTrailToRoute(run));
+        })
+        .addTo(trailsLayer);
+    }
+  }
+
+  // ---- Stitch a trail into the route ------------------------------------------
+  async function addTrailToRoute(run) {
+    pushUndo();
+    let coords = run.latlng.map((c) => [c[0], c[1]]);
+
+    if (state.waypoints.length) {
+      const lastWp = state.waypoints[state.waypoints.length - 1];
+      // Orient the trail so its nearer end faces the current route end.
+      const dStart = haversine([lastWp.lat, lastWp.lng], coords[0]);
+      const dEnd = haversine([lastWp.lat, lastWp.lng], coords[coords.length - 1]);
+      if (dEnd < dStart) coords = coords.slice().reverse();
+      // Connector segment (snapped, current profile) unless already touching.
+      const gap = Math.min(dStart, dEnd);
+      if (gap > 5) {
+        const trailStart = { lat: coords[0][0], lng: coords[0][1] };
+        const conn = await routeSegment(lastWp, trailStart, state.currentProfile);
+        state.waypoints.push(trailStart);
+        state.segments.push(conn);
+      }
+    } else {
+      state.waypoints.push({ lat: coords[0][0], lng: coords[0][1] });
+    }
+
+    state.waypoints.push({ lat: coords[coords.length - 1][0], lng: coords[coords.length - 1][1] });
+    state.segments.push({
+      coords,
+      distance: run.distance_m, // the run's recorded distance (geometry is a reduced polyline)
+      profile: 'trail',
+      meta: { runId: run.id, name: run.name, pace_s_per_km: run.pace_s_per_km },
+    });
+    render(); updateAll();
+    if (state.segments.length === 1) {
+      map.fitBounds(L.latLngBounds(coords), { padding: [60, 60] });
+    }
+  }
+
+  // ---- Personal time estimate --------------------------------------------------
+  // Per segment: a trail segment uses that run's real pace; anything else uses
+  // the user's median pace. Then a light grade adjustment adds time per meter
+  // of climb — on snapped segments only, since a run's recorded pace already
+  // includes the hills it was run on.
+  function updateTimeEstimate() {
+    const el = document.getElementById('stat-esttime');
+    const base = medianPaceSPerKm();
+    if (!state.segments.length || base == null) { el.textContent = '–'; return; }
+
+    let sec = 0;
+    for (const seg of state.segments) {
+      const pace = (seg.profile === 'trail' && seg.meta && isFinite(seg.meta.pace_s_per_km))
+        ? seg.meta.pace_s_per_km : base;
+      sec += (seg.distance / 1000) * pace;
+    }
+
+    const perMeter = CFG.trails.hillSecondsPerMeterAscent;
+    if (perMeter > 0 && elevSamples.length > 1) {
+      // Map elevation samples (distance-from-start along the geometry) onto
+      // segment ranges so climb on trail segments can be excluded.
+      let acc = 0;
+      const ranges = state.segments.map((s) => {
+        const len = pathLength(s.coords);
+        const r = { start: acc, end: acc + len, trail: s.profile === 'trail' };
+        acc = r.end;
+        return r;
+      });
+      for (let i = 1; i < elevSamples.length; i++) {
+        const climb = elevSamples[i].ele - elevSamples[i - 1].ele;
+        if (climb <= 0) continue;
+        const mid = (elevSamples[i].d + elevSamples[i - 1].d) / 2;
+        const rg = ranges.find((r) => mid >= r.start && mid < r.end);
+        if (!rg || !rg.trail) sec += climb * perMeter;
+      }
+    }
+    el.textContent = fmtDuration(sec);
+  }
+
+  // ---- Wiring -------------------------------------------------------------------
+  document.getElementById('btn-trails').addEventListener('click', () => {
+    trailsPanel.hidden = !trailsPanel.hidden;
+  });
+  document.getElementById('tp-close').addEventListener('click', () => {
+    trailsPanel.hidden = true;
+  });
+  document.getElementById('btn-load-trails').addEventListener('click', () =>
+    document.getElementById('trails-file').click());
+  document.getElementById('trails-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { importTrailData(JSON.parse(reader.result)); }
+      catch (err) { toast('Not valid JSON: ' + err.message); }
+    };
+    reader.readAsText(file);
+  });
+  document.getElementById('tp-showall').addEventListener('change', renderTrailsLayer);
+
+  // Dev convenience: if a trails file is served next to the app (local folder;
+  // gitignored so it never reaches the public site), import it automatically
+  // for the current user the first time.
+  async function tryAutoLoadTrails() {
+    if (trailData || !CFG.trails.autoLoadFile) return;
+    try {
+      const res = await fetch(CFG.trails.autoLoadFile, { cache: 'no-store' });
+      if (!res.ok) return; // 404 on the public site — expected
+      const json = await res.json();
+      if (importTrailData(json)) trailsPanel.hidden = false;
+    } catch (e) { /* offline or absent — fine */ }
+  }
+
+  renderUserSelect();
+  loadTrailData();
+  tryAutoLoadTrails();
+
+  // --------------------------------------------------------------------------
   // Toolbar wiring
   // --------------------------------------------------------------------------
   const profileWrap = document.getElementById('profile-buttons');
@@ -797,6 +1146,7 @@ ${trkpts}
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); enqueue(undo); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); enqueue(redo); }
     else if (e.key.toLowerCase() === 'd') setDrawMode(!drawMode);
+    else if (e.key.toLowerCase() === 't') trailsPanel.hidden = !trailsPanel.hidden;
   });
 
   // --------------------------------------------------------------------------
@@ -827,6 +1177,16 @@ ${trkpts}
     getDistanceMeters: totalDistance,
     getElevationSamples: () => elevSamples,
     whenIdle: () => opQueue,
+    // My Trails / user API
+    importTrails: (json) => importTrailData(json),
+    getTrailData: () => trailData,
+    addTrailById: (id) => {
+      const run = trailData && trailData.runs.find((r) => String(r.id) === String(id));
+      if (!run) throw new Error('no such run: ' + id);
+      return enqueue(() => addTrailToRoute(run));
+    },
+    getUsers: () => JSON.parse(JSON.stringify(users)),
+    getEstimateText: () => document.getElementById('stat-esttime').textContent,
   };
 
   updateAll();

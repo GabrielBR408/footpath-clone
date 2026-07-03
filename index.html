@@ -17,6 +17,7 @@
 
     <div class="group">
       <button id="btn-draw" title="Freehand draw mode: drag a rough line on the map and it snaps to paths (D)">✏️ Draw</button>
+      <button id="btn-trails" title="My Trails: pick from your own imported runs (T)">🏃 Trails</button>
     </div>
 
     <div class="group">
@@ -39,7 +40,26 @@
     <div class="group search">
       <input id="search-box" type="text" placeholder="Search a place… (Enter)">
     </div>
+
+    <div class="group user">
+      <select id="user-select" title="User profile — trails are stored per user, in this browser only"></select>
+    </div>
   </header>
+
+  <aside id="trails-panel" hidden>
+    <div class="tp-head">
+      <span>🏃 My Trails — <b id="tp-user"></b></span>
+      <button id="tp-close" title="Close">✕</button>
+    </div>
+    <div class="tp-actions">
+      <button id="btn-load-trails" title="Import your runs from a JSON file (stays in this browser)">⤒ Load my trails (JSON)</button>
+      <input type="file" id="trails-file" accept=".json,application/json" hidden>
+      <label class="tp-toggle"><input type="checkbox" id="tp-showall"> show all on map</label>
+    </div>
+    <div id="tp-meta"></div>
+    <div id="tp-list"></div>
+    <div class="tp-foot">Your data stays in this browser (per user profile). Nothing is uploaded or published.</div>
+  </aside>
 
   <div id="map"></div>
 
@@ -51,6 +71,8 @@
       <div class="stat"><label>Distance</label><span id="stat-distance">0</span></div>
       <div class="stat"><label>Ascent</label><span id="stat-ascent">–</span></div>
       <div class="stat"><label>Descent</label><span id="stat-descent">–</span></div>
+      <div class="stat" title="Estimated run time from your own pace (imported trails use that run's real pace; snapped segments use your median pace + hill adjustment)">
+        <label>Est. Time</label><span id="stat-esttime">–</span></div>
       <div class="stat"><label>Points</label><span id="stat-points">0</span></div>
       <div class="stat busy" id="stat-busy" hidden>routing…</div>
     </div>

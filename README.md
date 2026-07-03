@@ -51,6 +51,36 @@ npx http-server . -p 5178
   Strava. **⤒ GPX** imports an existing track.
 - **Hover the elevation chart** → a dot shows that spot on the map.
 - **Search box** → jump to any place (Nominatim).
+- **🏃 Trails** (or press `T`) → your own imported runs as pickable segments —
+  see "My Trails" below.
+
+## My Trails — your own runs as route segments
+
+Import your real activities (e.g. pulled from Strava) and stitch them into
+routes, with a **personal time estimate** based on your own pace.
+
+- **User profiles**: the 👤 selector in the toolbar. Each user's trail data is
+  stored in **this browser only** (localStorage) — nothing is uploaded,
+  committed, or published. Add users with "＋ New user…".
+- **Import**: open 🏃 Trails → **⤒ Load my trails (JSON)** → pick your
+  `strava-runs.json` from the device (works on phones — get the file onto the
+  phone via AirDrop/Drive/Files and pick it). It persists in that browser until
+  cleared. Expected schema: `{ runs: [{ id, name, start_date, distance_m,
+  moving_time_s, elev_gain_m, pace_s_per_km, latlng: [[lat,lng],…] }, …],
+  median_pace_s_per_km }`.
+- **Local convenience**: if `strava-runs.json` sits next to `index.html` when
+  served locally, it auto-imports on first load. That file is **gitignored** so
+  it can never reach the public site.
+- **Pick & stitch**: hover a run to preview it; **+ Add** appends it to the
+  route (auto-oriented, auto-connected from your route's end with a snapped
+  segment). "Show all on map" renders every run faintly — click one to add it.
+  Trail segments draw in Strava orange; their anchor points can't be dragged
+  (that would break the recorded track) — right-click from the route end to
+  remove, or Undo.
+- **Est. Time** in the stats bar: trail segments use *that run's real pace*;
+  snapped/drawn segments use your *median pace*, plus a light hill adjustment
+  (`trails.hillSecondsPerMeterAscent` in config, default 6 s per meter of
+  climb, applied to non-trail segments only).
 
 ## Customize it
 
