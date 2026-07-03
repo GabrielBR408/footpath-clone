@@ -54,6 +54,8 @@ body { display: flex; flex-direction: column; }
 }
 
 /* ---------- My Trails panel ---------- */
+/* display:flex below beats the UA's [hidden]{display:none}, so hide explicitly */
+#trails-panel[hidden] { display: none; }
 #trails-panel {
   position: absolute; top: 56px; left: 10px; bottom: 190px;
   width: 300px; max-width: calc(100vw - 20px);
