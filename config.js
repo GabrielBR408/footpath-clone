@@ -35,6 +35,13 @@ window.FP_CONFIG = {
   router: {
     engine: 'osrm',
 
+    // Per-profile engine override. Trail Run uses BRouter because OSRM's foot
+    // profile treats trails and roads alike, while BRouter's hiking profiles
+    // actively prefer paths/trails — what a trail runner wants.
+    engineByProfile: {
+      trailrun: 'brouter',
+    },
+
     // FOSSGIS-run OSRM demo servers (the same ones openstreetmap.org uses).
     // Each routing profile maps to a server endpoint.
     osrm: {
@@ -52,6 +59,7 @@ window.FP_CONFIG = {
       profiles: {
         walk: 'shortest',
         hike: 'hiking-mountain',
+        trailrun: 'hiking-mountain', // trail-preferring; verified on brouter.de
         bike: 'trekking',
       },
     },
@@ -80,10 +88,11 @@ window.FP_CONFIG = {
   // key: internal id (must match router endpoint/profile maps above)
   // 'direct' is the no-snap straight-line mode (always available).
   profiles: [
-    { key: 'walk',   label: 'Walk',     color: '#e8590c' },
-    { key: 'hike',   label: 'Hike',     color: '#2f9e44' },
-    { key: 'bike',   label: 'Bike',     color: '#1971c2' },
-    { key: 'direct', label: 'Straight', color: '#868e96' },
+    { key: 'walk',     label: 'Walk',      color: '#e8590c' },
+    { key: 'hike',     label: 'Hike',      color: '#2f9e44' },
+    { key: 'trailrun', label: 'Trail Run', color: '#7048e8' },
+    { key: 'bike',     label: 'Bike',      color: '#1971c2' },
+    { key: 'direct',   label: 'Straight',  color: '#868e96' },
   ],
 
   // --- Look & feel ---------------------------------------------------------

@@ -39,9 +39,14 @@ npx http-server . -p 5178
 - **Click** the map → adds a point; the route between points snaps to real paths.
 - **✏️ Draw** (or press `D`) → drag a rough freehand line; it's thinned into
   via-points and snapped to the path network — the signature Footpath gesture.
-- **Walk / Hike / Bike / Straight** → routing profile for *new* segments
-  (mix profiles within one route; "Straight" = no snapping, like Footpath's
-  magnet-off mode).
+- **Walk / Hike / Trail Run / Bike / Straight** → routing profile for *new*
+  segments (mix profiles within one route; "Straight" = no snapping, like
+  Footpath's magnet-off mode). **Trail Run** routes via BRouter's
+  trail-preferring `hiking-mountain` profile (per-profile engine override in
+  `config.js` → `router.engineByProfile`), so it seeks actual trails/paths
+  instead of treating roads equally like OSRM's foot profile does. Its time
+  estimate uses the median pace of your imported *trail* runs rather than
+  your overall road median.
 - **Drag a point** to reshape (adjacent segments re-route). **Right-click a
   point** to delete it (route heals around it).
 - **⇄ Out & Back** duplicates the route reversed. **◯ Close Loop** routes from

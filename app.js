@@ -145,7 +145,9 @@
     if (profile === 'direct') return directSegment(a, b, profile);
     busy(true);
     try {
-      return CFG.router.engine === 'brouter'
+      const engine = (CFG.router.engineByProfile && CFG.router.engineByProfile[profile])
+        || CFG.router.engine;
+      return engine === 'brouter'
         ? await routeBRouter(a, b, profile)
         : await routeOSRM(a, b, profile);
     } catch (e) {
@@ -887,6 +889,18 @@ ${trkpts}
     return paces.length ? paces[Math.floor(paces.length / 2)] : null;
   }
 
+  // Median pace of the user's actual trail runs (sport_type contains "trail"),
+  // used for Trail Run segments. Falls back to the overall median.
+  function trailMedianPaceSPerKm() {
+    if (!trailData) return null;
+    const paces = trailData.runs
+      .filter((r) => /trail/i.test(r.sport_type || ''))
+      .map((r) => r.pace_s_per_km)
+      .filter((p) => isFinite(p))
+      .sort((a, b) => a - b);
+    return paces.length ? paces[Math.floor(paces.length / 2)] : medianPaceSPerKm();
+  }
+
   function fmtPace(sPerKm) {
     const s = imperial ? sPerKm * 1.609344 : sPerKm;
     const m = Math.floor(s / 60), r = Math.round(s % 60);
@@ -1020,10 +1034,15 @@ ${trkpts}
     const base = medianPaceSPerKm();
     if (!state.segments.length || base == null) { el.textContent = '–'; return; }
 
+    const trailPace = trailMedianPaceSPerKm();
     let sec = 0;
     for (const seg of state.segments) {
-      const pace = (seg.profile === 'trail' && seg.meta && isFinite(seg.meta.pace_s_per_km))
-        ? seg.meta.pace_s_per_km : base;
+      let pace = base;
+      if (seg.profile === 'trail' && seg.meta && isFinite(seg.meta.pace_s_per_km)) {
+        pace = seg.meta.pace_s_per_km;       // the recorded run's own pace
+      } else if (seg.profile === 'trailrun' && trailPace != null) {
+        pace = trailPace;                    // the user's typical trail-run pace
+      }
       sec += (seg.distance / 1000) * pace;
     }
 
@@ -1034,7 +1053,10 @@ ${trkpts}
       let acc = 0;
       const ranges = state.segments.map((s) => {
         const len = pathLength(s.coords);
-        const r = { start: acc, end: acc + len, trail: s.profile === 'trail' };
+        // Trail Run pace comes from real (hilly) trail runs, so like recorded
+        // trails it gets no extra hill penalty — only road-pace segments do.
+        const r = { start: acc, end: acc + len,
+                    trail: s.profile === 'trail' || s.profile === 'trailrun' };
         acc = r.end;
         return r;
       });
