@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Footpath Clone — Snap-to-Path Route Planner</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header id="toolbar">
+    <div class="brand">🥾 Footpath<span>Clone</span></div>
+
+    <div class="group" id="profile-buttons" title="Routing profile for new segments"></div>
+
+    <div class="group">
+      <button id="btn-draw" title="Freehand draw mode: drag a rough line on the map and it snaps to paths (D)">✏️ Draw</button>
+    </div>
+
+    <div class="group">
+      <button id="btn-undo" title="Undo (Ctrl+Z)" disabled>↩︎</button>
+      <button id="btn-redo" title="Redo (Ctrl+Y)" disabled>↪︎</button>
+    </div>
+
+    <div class="group">
+      <button id="btn-outback" title="Out-and-back: retrace the route to the start" disabled>⇄ Out &amp; Back</button>
+      <button id="btn-loop" title="Close the loop: route from the end back to the start" disabled>◯ Close Loop</button>
+      <button id="btn-clear" title="Clear route" disabled>🗑</button>
+    </div>
+
+    <div class="group">
+      <button id="btn-import" title="Import a GPX file">⤒ GPX</button>
+      <button id="btn-export" title="Export route as GPX" disabled>⤓ GPX</button>
+      <input type="file" id="gpx-file" accept=".gpx,application/gpx+xml" hidden>
+    </div>
+
+    <div class="group search">
+      <input id="search-box" type="text" placeholder="Search a place… (Enter)">
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <div id="hint">Click the map to add points — the route snaps to real paths. Or hit <b>✏️ Draw</b> and drag a rough line.</div>
+  <div id="toast" hidden></div>
+
+  <footer id="statsbar">
+    <div class="stats">
+      <div class="stat"><label>Distance</label><span id="stat-distance">0</span></div>
+      <div class="stat"><label>Ascent</label><span id="stat-ascent">–</span></div>
+      <div class="stat"><label>Descent</label><span id="stat-descent">–</span></div>
+      <div class="stat"><label>Points</label><span id="stat-points">0</span></div>
+      <div class="stat busy" id="stat-busy" hidden>routing…</div>
+    </div>
+    <div id="chart-wrap">
+      <canvas id="elevation-chart"></canvas>
+      <div id="chart-empty">Elevation profile appears here once you draw a route</div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

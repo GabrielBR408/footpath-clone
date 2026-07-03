@@ -1,0 +1,100 @@
+/* Footpath Clone — layout & theme. Route/marker colors live in config.js. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* ---------- Toolbar ---------- */
+#toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px;
+  background: #1e2226; color: #f1f3f5;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  z-index: 1000;
+}
+
+.brand { font-weight: 700; font-size: 15px; letter-spacing: .3px; margin-right: 6px; }
+.brand span { color: #74c0fc; font-weight: 400; }
+
+.group { display: flex; align-items: center; gap: 4px; }
+.group:not(:last-child) { padding-right: 10px; border-right: 1px solid #343a40; }
+
+#toolbar button {
+  background: #2b3035; color: #e9ecef;
+  border: 1px solid #495057; border-radius: 6px;
+  padding: 5px 10px; font-size: 13px; cursor: pointer;
+  white-space: nowrap;
+}
+#toolbar button:hover:not(:disabled) { background: #3b4148; }
+#toolbar button:disabled { opacity: .4; cursor: default; }
+#toolbar button.active { background: #1971c2; border-color: #1971c2; color: #fff; }
+
+#profile-buttons button.selected {
+  color: #fff; border-color: transparent;
+  /* background set inline from config profile color */
+}
+
+.search input {
+  background: #2b3035; color: #e9ecef;
+  border: 1px solid #495057; border-radius: 6px;
+  padding: 5px 10px; font-size: 13px; width: 200px;
+}
+.search input::placeholder { color: #868e96; }
+
+/* ---------- Map ---------- */
+#map { flex: 1; min-height: 0; }
+#map.drawing { cursor: crosshair !important; }
+
+.wp-icon {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 3px solid; /* colors set inline from config */
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.wp-icon.endpoint { width: 18px; height: 18px; }
+
+#hint {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(30,34,38,.92); color: #f1f3f5;
+  padding: 8px 16px; border-radius: 20px; font-size: 13px;
+  z-index: 900; pointer-events: none;
+  max-width: 90vw; text-align: center;
+}
+
+#toast {
+  position: absolute; bottom: 190px; left: 50%; transform: translateX(-50%);
+  background: #c92a2a; color: #fff;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px;
+  z-index: 1100; max-width: 80vw;
+}
+
+/* ---------- Stats bar + elevation chart ---------- */
+#statsbar {
+  background: #1e2226; color: #f1f3f5;
+  padding: 6px 14px 10px;
+  z-index: 1000;
+}
+
+.stats { display: flex; gap: 26px; align-items: baseline; margin-bottom: 4px; }
+.stat label { font-size: 11px; color: #868e96; text-transform: uppercase; letter-spacing: .5px; margin-right: 6px; }
+.stat span { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat.busy { font-size: 12px; color: #fcc419; }
+
+#chart-wrap { position: relative; height: 110px; }
+#elevation-chart { width: 100%; height: 110px; display: block; }
+#chart-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #495057; font-size: 13px; pointer-events: none;
+}
+#chart-wrap.has-data #chart-empty { display: none; }
+
+@media (max-width: 700px) {
+  .search input { width: 120px; }
+  .stats { gap: 14px; }
+  #chart-wrap, #elevation-chart { height: 80px; }
+}
