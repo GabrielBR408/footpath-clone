@@ -57,13 +57,16 @@ body { display: flex; flex-direction: column; }
 /* display:flex below beats the UA's [hidden]{display:none}, so hide explicitly */
 #trails-panel[hidden] { display: none; }
 #trails-panel {
+  /* top/bottom are set dynamically from the real toolbar/statsbar heights
+     (the toolbar wraps to several rows on narrow screens); these are just
+     fallbacks. z-index must beat Leaflet's controls (1000). */
   position: absolute; top: 56px; left: 10px; bottom: 190px;
   width: 300px; max-width: calc(100vw - 20px);
   display: flex; flex-direction: column;
   background: rgba(30,34,38,.96); color: #f1f3f5;
   border: 1px solid #343a40; border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0,0,0,.5);
-  z-index: 950; overflow: hidden;
+  z-index: 1100; overflow: hidden;
 }
 .tp-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -98,7 +101,7 @@ body { display: flex; flex-direction: column; }
 .tp-foot { padding: 8px 12px; font-size: 10.5px; color: #5c636a; border-top: 1px solid #343a40; }
 
 @media (max-width: 700px) {
-  #trails-panel { bottom: 150px; width: 260px; }
+  #trails-panel { width: 260px; }
 }
 
 /* ---------- Map ---------- */

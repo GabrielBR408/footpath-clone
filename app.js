@@ -45,7 +45,10 @@
   // --------------------------------------------------------------------------
   // Map setup
   // --------------------------------------------------------------------------
-  const map = L.map('map', { zoomControl: true }).setView(CFG.startCenter, CFG.startZoom);
+  // Zoom control on the right: the My Trails panel owns the left edge, and on
+  // phones the two would otherwise overlap.
+  const map = L.map('map', { zoomControl: false }).setView(CFG.startCenter, CFG.startZoom);
+  L.control.zoom({ position: 'topright' }).addTo(map);
   L.tileLayer(CFG.tiles.url, {
     attribution: CFG.tiles.attribution,
     maxZoom: CFG.tiles.maxZoom,
@@ -1071,8 +1074,21 @@ ${trkpts}
   }
 
   // ---- Wiring -------------------------------------------------------------------
+  // The toolbar wraps to multiple rows on narrow screens and the stats bar
+  // height varies, so pin the panel between their *measured* edges instead of
+  // trusting the CSS fallback values.
+  function positionTrailsPanel() {
+    const tb = document.getElementById('toolbar');
+    const sb = document.getElementById('statsbar');
+    trailsPanel.style.top = (tb.offsetHeight + 8) + 'px';
+    trailsPanel.style.bottom = (sb.offsetHeight + 8) + 'px';
+  }
+  window.addEventListener('resize', positionTrailsPanel);
+  positionTrailsPanel();
+
   document.getElementById('btn-trails').addEventListener('click', () => {
     trailsPanel.hidden = !trailsPanel.hidden;
+    if (!trailsPanel.hidden) positionTrailsPanel();
   });
   document.getElementById('tp-close').addEventListener('click', () => {
     trailsPanel.hidden = true;
