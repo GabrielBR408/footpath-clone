@@ -1,10 +1,10 @@
 // ============================================================================
-// FOOTPATH CLONE — CONFIG
+// TRAIL UP AND DOWNS — CONFIG
 // Everything you'd normally want to customize lives in this one file.
 // No API keys are required with the defaults below (all free/open services).
 // ============================================================================
 
-window.FP_CONFIG = {
+window.APP_CONFIG = {
 
   // --- Startup view -----------------------------------------------------
   startCenter: [37.7694, -122.4862], // [lat, lng] — Golden Gate Park, SF
@@ -114,7 +114,7 @@ window.FP_CONFIG = {
     maxViaPoints: 12,   // cap per stroke (keeps routing fast)
   },
 
-  gpx: { creator: 'footpath-clone', trackName: 'My Route' },
+  gpx: { creator: 'trail-up-and-downs', trackName: 'My Route' },
 
   // --- My Trails (personal activity data, e.g. exported from Strava) -------
   // Data is imported by the user from a local JSON file and stored ONLY in

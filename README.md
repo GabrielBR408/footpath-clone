@@ -1,9 +1,10 @@
-# Footpath Clone — Snap-to-Path Route Planner
+# Trail Up And Downs — Snap-to-Path Route Planner
 
-A self-contained, fully-customizable web clone of [Footpath](https://footpathapp.com)'s
-core experience: **draw a rough line on the map and it snaps to real trails, roads,
-and paths**, with live distance, an interactive elevation profile, and GPX
-import/export.
+A self-contained, fully-customizable route planner: **draw a rough line on the
+map and it snaps to real trails, roads, and paths**, with live distance, an
+interactive elevation profile, personal pace estimates, and GPX import/export.
+(Originally inspired by a commercial route-planning app — see
+[ORIGINAL-APP-REVIEW.md](ORIGINAL-APP-REVIEW.md) for the product research.)
 
 Built on a 100% open, no-API-key stack:
 
@@ -38,10 +39,10 @@ npx http-server . -p 5178
 
 - **Click** the map → adds a point; the route between points snaps to real paths.
 - **✏️ Draw** (or press `D`) → drag a rough freehand line; it's thinned into
-  via-points and snapped to the path network — the signature Footpath gesture.
+  via-points and snapped to the path network — the app's signature gesture.
 - **Walk / Hike / Trail Run / Bike / Straight** → routing profile for *new*
-  segments (mix profiles within one route; "Straight" = no snapping, like
-  Footpath's magnet-off mode). **Trail Run** routes via BRouter's
+  segments (mix profiles within one route; "Straight" = no snapping, for
+  off-trail/water sections). **Trail Run** routes via BRouter's
   trail-preferring `hiking-mountain` profile (per-profile engine override in
   `config.js` → `router.engineByProfile`), so it seeks actual trails/paths
   instead of treating roads equally like OSRM's foot profile does. Its time
@@ -112,7 +113,7 @@ Styling/layout is `styles.css`; all behavior is `app.js` (~700 commented lines,
 no framework — easy to modify).
 
 There's also a small console API for scripting/testing:
-`FootpathApp.addPoint(lat, lng)`, `.setProfile('bike')`, `.getDistanceMeters()`,
+`TrailApp.addPoint(lat, lng)`, `.setProfile('bike')`, `.getDistanceMeters()`,
 `.undo()`, `.outAndBack()`, etc.
 
 ## Going fully self-hosted (optional)
@@ -130,23 +131,21 @@ For full independence / offline capability:
   `url: 'http://localhost:5000/v1/srtm30m'`.
 - **Tiles** — any raster tile server, or pre-download tiles for your region.
 
-## Known limitations vs. real Footpath
+## Known limitations
 
-- **No hiking-specific routing profile on the default engine** — OSRM's public
-  foot profile routes on trails but doesn't prefer them the way Footpath's hike
-  mode does. Switch `router.engine` to `'brouter'` for better trail behavior
-  (public BRouter server coverage/profile names vary), or self-host BRouter/
-  Valhalla for full fidelity.
+- **Hike/Walk profiles don't prefer trails** — OSRM's foot profile treats
+  roads and trails alike. Use the **Trail Run** profile (BRouter
+  hiking-mountain) when you want trail-seeking routes, remap other profiles
+  via `router.engineByProfile`, or self-host BRouter/Valhalla for full control.
 - **No saved-route library / accounts / sync** — routes live in the current tab;
   persistence is GPX files. (localStorage save/load would be a ~50-line add.)
-- **No offline maps or turn-by-turn navigation** (Footpath Elite features).
-- **No eraser / trace-over-to-fix editing** — reshaping is drag-a-point and
-  undo, not Footpath's splice-in-a-new-trace gesture.
+- **No offline maps or turn-by-turn navigation.**
+- **No eraser / trace-over-to-fix editing** — reshaping is drag-a-point and undo.
 - **Elevation is 90m DEM** via Open-Meteo — good profiles, but short steep
-  pitches can be smoothed vs. Footpath's data.
+  pitches get smoothed.
 - **Public server etiquette** — the free OSRM/BRouter/Nominatim servers are
   shared community infrastructure; fine for personal route planning, not for
   heavy traffic. Self-host if usage grows.
 
-See [FOOTPATH-REVIEW.md](FOOTPATH-REVIEW.md) for the full product research this
-clone was built from.
+See [ORIGINAL-APP-REVIEW.md](ORIGINAL-APP-REVIEW.md) for the product research
+on the commercial app this project was originally modeled on.

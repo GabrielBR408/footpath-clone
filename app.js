@@ -1,5 +1,5 @@
 /* ============================================================================
- * FOOTPATH CLONE — app logic
+ * TRAIL UP AND DOWNS — app logic
  * Click to add snapped waypoints, or Draw mode to trace a rough line that
  * snaps to real paths. Live distance, elevation profile, GPX import/export,
  * undo/redo, out-and-back, loop closing, per-segment routing profiles.
@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  const CFG = window.FP_CONFIG;
+  const CFG = window.APP_CONFIG;
 
   // --------------------------------------------------------------------------
   // State
@@ -201,8 +201,7 @@
     state.waypoints.push(wp);
     if (prev) {
       const seg = await routeSegment(prev, wp, state.currentProfile);
-      // Snap the placed point (and the very first point) onto the routed path,
-      // like Footpath does.
+      // Snap the placed point (and the very first point) onto the routed path.
       const first = seg.coords[0], last = seg.coords[seg.coords.length - 1];
       if (state.segments.length === 0) { prev.lat = first[0]; prev.lng = first[1]; }
       wp.lat = last[0]; wp.lng = last[1];
@@ -597,7 +596,7 @@
   window.addEventListener('resize', drawChart);
 
   // --------------------------------------------------------------------------
-  // Freehand DRAW mode — the Footpath signature: drag a rough line, it snaps
+  // Freehand DRAW mode — the signature gesture: drag a rough line, it snaps
   // --------------------------------------------------------------------------
   let drawMode = false;
   let stroking = false;
@@ -1186,7 +1185,7 @@ ${trkpts}
   // --------------------------------------------------------------------------
   // Programmatic API (handy for testing & scripting)
   // --------------------------------------------------------------------------
-  window.FootpathApp = {
+  window.TrailApp = {
     state,
     map,
     addPoint: (lat, lng) => enqueue(() => addWaypoint(L.latLng(lat, lng))),
